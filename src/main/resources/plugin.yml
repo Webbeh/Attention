@@ -5,11 +5,3 @@ api-version: 1.14
 main: net.raidstone.attention.Attention
 load: POSTWORLD
 author: Weby
-commands:
-  bump:
-    usage: "You need to add at least one player name. Use /bump <player> [player2]..."
-    description: Bump a player.
-    permission: attention.bump
-  chatping:
-    usage: "/chatping [on|off]"
-    description: "Use /chatping to set whether you want your player name to be pinged in chat."

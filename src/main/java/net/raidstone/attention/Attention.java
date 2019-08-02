@@ -3,7 +3,6 @@ package net.raidstone.attention;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
-import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
@@ -11,14 +10,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.server.ServerCommandEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * @author weby@we-bb.com [Nicolas Glassey]
@@ -29,6 +27,14 @@ public class Attention extends JavaPlugin implements Listener {
     //Cooldown time
     private final UUID consoleUuid = UUID.randomUUID();
     private int cooldown = 5;
+    
+    private String bumpCommand = "bump";
+    private String pingCommand = "chatping";
+    
+    private String bumpPerm = "attention.bump";
+    private String pingPerm = "attention.ping";
+    private String coolPerm = "attention.nocooldown";
+    
     private final Set<UUID> cooledDown = new HashSet<>();
     private final Set<UUID> wantsPing = new HashSet<>();
     @Override
@@ -38,6 +44,11 @@ public class Attention extends JavaPlugin implements Listener {
         saveConfig();
         Bukkit.getPluginManager().registerEvents(this, this);
         cooldown = getConfig().getInt("cooldown");
+        bumpCommand = getConfig().getString("commands.bump");
+        pingCommand = getConfig().getString("commands.ping");
+        bumpPerm = getConfig().getString("permissions.bump");
+        pingPerm = getConfig().getString("permissions.ping");
+        coolPerm = getConfig().getString("permissions.cooldown");
         List<String> uuidStrings = getConfig().getStringList("wantsping");
         for(String uuidString : uuidStrings)
         {
@@ -55,7 +66,7 @@ public class Attention extends JavaPlugin implements Listener {
     public void onChatMessage(AsyncPlayerChatEvent event)
     {
         String m = event.getMessage();
-        for(String word : m.replaceAll("[^a-zA-Z ]", "").toLowerCase().split("\\s+"))
+        for(String word : getWords(m))
         {
             Player p = Bukkit.getPlayerExact(word);
             if(p==null) continue;
@@ -83,6 +94,13 @@ public class Attention extends JavaPlugin implements Listener {
         boolean console = origin==consoleUuid;
         Player orig = Bukkit.getPlayer(origin);
         if(orig==null && !console) return;
+        
+        if(toPing.size()==0)
+        {
+            if(console) Bukkit.getLogger().info("[Attention] No one to bump with that name.");
+            else orig.sendMessage("[Attention] No one to bump with that name.");
+            return;
+        }
         StringBuilder msg = new StringBuilder("You bumped ");
         for (Player p : toPing) {
             msg.append(p.getDisplayName());
@@ -137,67 +155,127 @@ public class Attention extends JavaPlugin implements Listener {
             if (p == null) continue;
             toPing.add(p);
         }
-    
         bumpPlayers(toPing, uuid);
     }
     
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    private String[] getWords(String string)
+    {
+        return string.replaceAll("[^a-zA-Z ]", "").toLowerCase().split("\\s+");
+    }
+    @EventHandler
+    public void sc(ServerCommandEvent event)
+    {
+        String command = event.getCommand();
+        String[] words = getWords(command);
+        String commandName = words[0];
+        
+        if(!commandName.equalsIgnoreCase(bumpCommand) && !commandName.equalsIgnoreCase(pingCommand))
+            return;
+        
+        //We cancel the event to not have the "command doesn't exist" message.
+        event.setCancelled(true);
+    
+        String[] args = new String[words.length-1];
+        //Copy all the arguments in one array, save for the command name itself
+        System.arraycopy(words, 1, args, 0, words.length - 1);
+        executeCommand(event.getSender(), commandName, args);
+    }
+    @EventHandler
+    public void oc(PlayerCommandPreprocessEvent event)
+    {
+        String command = event.getMessage().substring(1);
+        String[] words = getWords(command);
+        String commandName = words[0];
+        
+        if(!commandName.equalsIgnoreCase(bumpCommand) && !commandName.equalsIgnoreCase(pingCommand))
+            return;
+        
+        //We cancel the event to not have the "command doesn't exist" message.
+        event.setCancelled(true);
+        
+        //Copy all the arguments in one array, save for the command name itself
+        String[] args = new String[words.length-1];
+        System.arraycopy(words, 1, args, 0, words.length - 1);
+        Player p = event.getPlayer();
+        executeCommand(p, commandName, args);
+    }
+    
+    
+    private void executeCommand(@NotNull CommandSender sender, @NotNull String label, @NotNull String[] args) {
         //Console first
         if(sender instanceof ConsoleCommandSender)
         {
-            if(label.equalsIgnoreCase("bump"))
+            if(label.equalsIgnoreCase(bumpCommand))
             {
+                if(args.length==0) {
+                    Bukkit.getLogger().info("[Attention] You must append the name of at least one player.");
+                    return;
+                }
                 //Console can bypass cooldowns and everything.
                 bump(args, consoleUuid);
-                return true;
+                return;
             }
-            sender.sendMessage("Can't use that command in console.");
-            return true;
+            sender.sendMessage("[Attention] Can't use that command in console.");
+            return;
         }
         
         //Now cast to player
         Player send = (Player) sender;
         UUID uuid = send.getUniqueId();
-        if(label.equalsIgnoreCase("bump"))
+        if(label.equalsIgnoreCase(bumpCommand))
         {
-            if(args.length==0)
-                return false;
+            if(!send.hasPermission(bumpPerm))
+            {
+                send.sendMessage("[Attention] You don't have the permission to turn this on.");
+                return;
+            }
+            if(args.length==0) {
+                send.sendMessage("[Attention] You must append the name of at least one player.");
+                return;
+            }
             
             if(cooledDown.contains(uuid))
             {
                 send.sendMessage("[Attention] Don't ping players too often !");
-                return true;
+                return;
             }
             
-            if(!send.hasPermission("attention.nocooldown"))
+            if(!send.hasPermission(coolPerm))
                 cooledDown.add(uuid);
             
             bump(args, uuid);
         }
         
-        if(label.equalsIgnoreCase("chatping"))
+        if(label.equalsIgnoreCase(pingCommand))
         {
             if(args.length>=1)
             {
                 String onoff = args[0];
                 if(onoff.equalsIgnoreCase("on")) {
+                    if (!send.hasPermission(pingPerm)) {
+                        send.sendMessage("[Attention] You don't have permission to turn this on.");
+                        return;
+                    }
                     enable(send);
                 }
                 else if(onoff.equalsIgnoreCase("off")) {
                     disable(send);
                 }
                 else
-                    return false;
-                return true;
+                    send.sendMessage("[Attention] You must choose between [on] and [off]. You can also only use the command to toggle between those modes.");
+                return;
             }
             
             if(wantsPing.contains(uuid))
                 disable(send);
-            else
+            else {
+                if (!send.hasPermission(pingPerm)) {
+                    send.sendMessage("[Attention] You don't have permission to turn this on.");
+                    return;
+                }
                 enable(send);
+            }
         }
-        return true;
     }
     private void enable(Player p)
     {

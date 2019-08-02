@@ -1,5 +1,16 @@
 # Cooldown in seconds between two /bump commands.
 cooldown: 5
 
+# Command names. The commands will always be lowercase.
+commands:
+  bump: bump
+  ping: chatping
+
+# The player permissions
+permissions:
+  bump: attention.bump
+  ping: attention.ping
+  cooldown: attention.nocooldown
+
 # Auto generated list of users who want to be pinged when a chat message contains their username.
 wantsping:
