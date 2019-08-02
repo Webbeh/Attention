@@ -12,5 +12,19 @@ permissions:
   ping: attention.ping
   cooldown: attention.nocooldown
 
+messages:
+  name-of-console: "Server"
+  plugin-prefix: "§7[§4§lAttention§7] "
+  message-color: "§f"
+  bump-sent: "$prefix $color You bumped $bumpedplayers !"
+  bump-received: "§c§l[$sender] §f§lHey !"
+  noperm: "$prefix §cYou don't have the permission to use that command."
+  no-players-to-bump: "$prefix $color No player was found with that name."
+  no-players-in-cmd: "$prefix $color You must append the name of at least one player."
+  cooldown: "$prefix §cDon't ping players too often !"
+  wrong-usage: "$prefix $color You must either choose [on] or [off]. Alternatively, you can simply use the command with no argument to toggle between on and off."
+  receives-pings: "$prefix $color You are now receiving pings !"
+  no-more-pings: "$prefix $color You are no longer receiving pings."
+
 # Auto generated list of users who want to be pinged when a chat message contains their username.
 wantsping:

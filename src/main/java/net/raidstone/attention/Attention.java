@@ -16,7 +16,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * @author weby@we-bb.com [Nicolas Glassey]
@@ -35,8 +38,28 @@ public class Attention extends JavaPlugin implements Listener {
     private String pingPerm = "attention.ping";
     private String coolPerm = "attention.nocooldown";
     
+    private String prefix = "§7[§4§lAttention§7] ";
+    private String serverName = "Server";
+    private String message_color = "§f";
+    private String bump_sent = prefix + message_color + "You bumped $bumpedplayers !";
+    private String bump_received = "§c§l[$sender] §f§lHey !";
+    private String noperm = prefix + "§cYou don't have the permission to use that command.";
+    private String no_players_to_bump = prefix + message_color + "No player was found with that name.";
+    private String no_players_in_cmd = prefix + message_color + "You must append the name of at least one player.";
+    private String cooldown_msg = prefix + "§cDon't ping players too often !";
+    private String wrong_usage = prefix + message_color + "You must either choose [on] or [off]. Alternatively, you can simply use the command with no argument to toggle between on and off.";
+    private String receive_pings = prefix + message_color + "You are now receiving pings !";
+    private String no_more_pings = prefix + message_color + "You are no longer receiving pings.";
+    
     private final Set<UUID> cooledDown = new HashSet<>();
     private final Set<UUID> wantsPing = new HashSet<>();
+    private String translateColors(String message)
+    {
+        if(message==null)
+            return "";
+        String m = message.replace("$prefix ", prefix).replace("$color ", message_color);
+        return ChatColor.translateAlternateColorCodes('§', m);
+    }
     @Override
     public void onEnable()
     {
@@ -49,6 +72,21 @@ public class Attention extends JavaPlugin implements Listener {
         bumpPerm = getConfig().getString("permissions.bump");
         pingPerm = getConfig().getString("permissions.ping");
         coolPerm = getConfig().getString("permissions.cooldown");
+        
+        prefix = getConfig().getString("messages.plugin-prefix");
+        message_color = getConfig().getString("messages.message-color");
+        
+        bump_sent = translateColors(getConfig().getString("messages.bump-sent"));
+        bump_received = translateColors(getConfig().getString("messages.bump-received"));
+        noperm = translateColors(getConfig().getString("messages.noperm"));
+        no_players_in_cmd = translateColors(getConfig().getString("messages.no-players-in-cmd"));
+        no_players_to_bump = translateColors(getConfig().getString("messages.no-players-to-bump"));
+        cooldown_msg = translateColors(getConfig().getString("messages.cooldown"));
+        wrong_usage = translateColors(getConfig().getString("messages.wrong-usage"));
+        receive_pings = translateColors(getConfig().getString("messages.receives-pings"));
+        no_more_pings = translateColors(getConfig().getString("messages.no-more-pings"));
+        serverName = translateColors(getConfig().getString("messages.name-of-console"));
+        
         List<String> uuidStrings = getConfig().getStringList("wantsping");
         for(String uuidString : uuidStrings)
         {
@@ -97,20 +135,22 @@ public class Attention extends JavaPlugin implements Listener {
         
         if(toPing.size()==0)
         {
-            if(console) Bukkit.getLogger().info("[Attention] No one to bump with that name.");
-            else orig.sendMessage("[Attention] No one to bump with that name.");
+            if(console) Bukkit.getLogger().info(no_players_to_bump);
+            else orig.sendMessage(no_players_to_bump);
             return;
         }
-        StringBuilder msg = new StringBuilder("You bumped ");
+        String msg = bump_sent;
+        StringBuilder pl = new StringBuilder("");
         for (Player p : toPing) {
-            msg.append(p.getDisplayName());
-            msg.append(" ");
-            p.sendMessage(ChatColor.BOLD+"["+(console?"Server":orig.getName())+"] "+ChatColor.DARK_RED+""+ChatColor.BOLD+"Hey !");
+            pl.append(p.getDisplayName());
+            pl.append(", ");
+            p.sendMessage(bump_received.replace("$sender", console?serverName:orig.getDisplayName()));
         }
+        pl=pl.replace(pl.length()-2, pl.length(), "");
         if(console)
-            Bukkit.getLogger().info("[Attention] "+msg.toString());
+            Bukkit.getLogger().info(msg.replace("$bumpedplayers", pl.toString()));
         else
-            orig.sendMessage(msg.toString());
+            orig.sendMessage(msg.replace("$bumpedplayers", pl.toString()));
         new BukkitRunnable() {
             @Override
             public void run()
@@ -208,14 +248,14 @@ public class Attention extends JavaPlugin implements Listener {
             if(label.equalsIgnoreCase(bumpCommand))
             {
                 if(args.length==0) {
-                    Bukkit.getLogger().info("[Attention] You must append the name of at least one player.");
+                    Bukkit.getLogger().info(no_players_in_cmd);
                     return;
                 }
                 //Console can bypass cooldowns and everything.
                 bump(args, consoleUuid);
                 return;
             }
-            sender.sendMessage("[Attention] Can't use that command in console.");
+            sender.sendMessage(prefix+"You can't use that command in console.");
             return;
         }
         
@@ -226,17 +266,17 @@ public class Attention extends JavaPlugin implements Listener {
         {
             if(!send.hasPermission(bumpPerm))
             {
-                send.sendMessage("[Attention] You don't have the permission to turn this on.");
+                send.sendMessage(noperm);
                 return;
             }
             if(args.length==0) {
-                send.sendMessage("[Attention] You must append the name of at least one player.");
+                send.sendMessage(no_players_in_cmd);
                 return;
             }
             
             if(cooledDown.contains(uuid))
             {
-                send.sendMessage("[Attention] Don't ping players too often !");
+                send.sendMessage(cooldown_msg);
                 return;
             }
             
@@ -253,7 +293,7 @@ public class Attention extends JavaPlugin implements Listener {
                 String onoff = args[0];
                 if(onoff.equalsIgnoreCase("on")) {
                     if (!send.hasPermission(pingPerm)) {
-                        send.sendMessage("[Attention] You don't have permission to turn this on.");
+                        send.sendMessage(noperm);
                         return;
                     }
                     enable(send);
@@ -262,7 +302,7 @@ public class Attention extends JavaPlugin implements Listener {
                     disable(send);
                 }
                 else
-                    send.sendMessage("[Attention] You must choose between [on] and [off]. You can also only use the command to toggle between those modes.");
+                    send.sendMessage(wrong_usage);
                 return;
             }
             
@@ -270,7 +310,7 @@ public class Attention extends JavaPlugin implements Listener {
                 disable(send);
             else {
                 if (!send.hasPermission(pingPerm)) {
-                    send.sendMessage("[Attention] You don't have permission to turn this on.");
+                    send.sendMessage(noperm);
                     return;
                 }
                 enable(send);
@@ -280,7 +320,7 @@ public class Attention extends JavaPlugin implements Listener {
     private void enable(Player p)
     {
         wantsPing.add(p.getUniqueId());
-        p.sendMessage("[Attention] You are now receiving pings !");
+        p.sendMessage(receive_pings);
         List<String> confUuid = getConfig().getStringList("wantsping");
         if(!confUuid.contains(p.getUniqueId().toString()))
             confUuid.add(p.getUniqueId().toString());
@@ -290,7 +330,7 @@ public class Attention extends JavaPlugin implements Listener {
     private void disable(Player p)
     {
         wantsPing.remove(p.getUniqueId());
-        p.sendMessage("[Attention] You are no longer receiving pings.");
+        p.sendMessage(no_more_pings);
         List<String> confUuid = getConfig().getStringList("wantsping");
         confUuid.remove(p.getUniqueId().toString());
         getConfig().set("wantsping", confUuid);
