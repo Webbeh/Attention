@@ -1,0 +1,5 @@
+# Cooldown in seconds between two /bump commands.
+cooldown: 5
+
+# Auto generated list of users who want to be pinged when a chat message contains their username.
+wantsping:
