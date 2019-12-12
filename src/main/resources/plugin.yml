@@ -1,7 +1,7 @@
 name: "Attention"
 description: Allows a player to ping another player in chat. Also allows players to get pinged when their name is stated.
 version: ${project.version}
-api-version: 1.14
+api-version: 1.15
 main: net.raidstone.attention.Attention
 load: POSTWORLD
 author: Weby
