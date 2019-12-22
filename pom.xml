@@ -114,9 +114,20 @@
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
+        <repository>
+            <id>paper</id>
+            <url>https://papermc.io/repo/repository/maven-public/</url>
+        </repository>
     </repositories>
 
     <dependencies>
+        <!-- PAPER -->
+        <dependency>
+            <groupId>com.destroystokyo.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.15.1-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- Annotations -->
         <dependency>
             <groupId>org.jetbrains</groupId>
@@ -125,11 +136,11 @@
             <scope>compile</scope>
         </dependency>
         <!-- Spigot API -->
-        <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.15-R0.1-SNAPSHOT</version>
-            <scope>provided</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.spigotmc</groupId>-->
+<!--            <artifactId>spigot-api</artifactId>-->
+<!--            <version>1.15-R0.1-SNAPSHOT</version>-->
+<!--            <scope>provided</scope>-->
+<!--        </dependency>-->
     </dependencies>
 </project>
